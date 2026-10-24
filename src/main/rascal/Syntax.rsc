@@ -1,69 +1,12 @@
 module Syntax
 
-layout Layout = WhitespaceAndComment* !>> [\ \t\n\r#];
-lexical WhitespaceAndComment = [\ \t\n\r] | @category="Comment" "#" ![\n]* $;
+layout Layout = WhitespaceAndComment* !>> [\ \t\n\r] !>> "//";
+lexical WhitespaceAndComment = [\ \t\n\r] | @category="Comment" "//" ![\n]* $;
 
-start syntax Planning 
-    = planning: PersonTasks+ personList
-;
-syntax PersonTasks 
-    = personTasks: 'Person' ID name Task+ tasks
-;
-syntax Task 
-    = task:
-    'Task' Action action
-    'priority' ':' INT prio
-    Duration? duration
-;
-syntax Duration 
-    = duration: 'duration' ':' INT dl TimeUnit unit
-;
-syntax Action 
-    = lunch: LunchAction lunchAction 
-    | meeting: MeetingAction meetingAction
-    | paper: PaperAction paperAction
-    | payment: PaymentAction paymentAction
-    | rest: RestAction restAction
-;
-syntax LunchAction 
-    = lunchAction: 'Almuerzo' ID location
-;
-syntax MeetingAction 
-    = meetingAction: 'Reunion' STRING topic
-;
-syntax PaperAction 
-    = paperAction: 'Reporte' ID report
-;
-syntax PaymentAction 
-    = paymentAction: 'Pago' INT amount 'peso'
-;
-syntax RestAction 
-    = restAction: 'Descanso' INT amount 'hour'
-;
-syntax TimeUnit 
-    = minute: Minute minute 
-    | hour: Hour hour 
-    | day: Day day 
-    | week: Week week
-    | month: Month month
-;
-syntax Minute 
-    = minute: 'min'
-;
-syntax Hour 
-    = hour: 'hour'
-;
-syntax Day 
-    = day: 'day'
-;
-syntax Week 
-    = week:'week'
-;
-syntax Month 
-    = month: 'month'
-;
-lexical INT = ([\-0-5][0-5]* !>> [0-5]); 
-lexical STRING = "\"" ![\"\n]* "\"";
-lexical ID = ([a-zA-Z/.\-][a-zA-Z0-9_/.]* !>> [a-zA-Z0-9_/.]) \ Reserved;
-keyword Reserved = "Person" | "Task" | "priority" | "duration" | "Almuerzo" | "Reunion" | "Descanso" 
-                    | "Reporte"  | "Pago" | "peso" | "min" | "hour" | "day" | "week" | "month" | ":";
+start syntax ObjModule = objModule: "object" Ident name;
+
+lexical Ident = ([a-zA-Z][a-zA-Z0-9_]* !>> [a-zA-Z0-9_]) \ Reserved;
+
+keyword Reserved = "object" | "extends" | "method" | "val" | "var" | "new" | "override"
+                 | "if" | "then" | "else" | "for" | "to" | "print" | "println"
+                 | "true" | "false" | "and" | "or" | "neg" | "in";
