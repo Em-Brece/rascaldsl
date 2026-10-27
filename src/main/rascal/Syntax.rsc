@@ -33,8 +33,6 @@ lexical Eqs = "\<=" | "\>=" | "\<\>" | "==" | "\<" | "\>"| And | Or | In;
 
 lexical Char = Letter | Digit | Punt | Ops | " ";
 
-lexical StringChars = ![$"\"\"\\n\r]+;
-
 lexical Ident = (Letter(Letter|Digit|"_")* !>> [a-zA-Z0-9_]) \ Reserved;
 
 keyword Reserved = "object" | "extends" | "method" | "val" | "var" | "new" | "override"
@@ -60,11 +58,11 @@ lexical Modificador = ("val" | "var") !>> [a-zA-Z0-9_];
 
 syntax Vars = vars: Modificador Ident (":" Tipo)? "=" Exp;
 
-syntax Inst = inst: "new" Tipo ("(" Exp ("," Exp)* ")")? ("{" Ovri+ "}")?;
+syntax Inst = inst: "new" Tipo ("(" {Exp ","}+ ")")? ("{" Ovri+ "}")?;
 
-syntax Ovri = ovri: "override" Ident ("(" Params? ")" ":" Tipo)? "=" "{" Program "}";
+syntax Ovri = ovri: "override" Ident Firma? "=" "{" Program "}";
 
-syntax Inv = inv: Ident ("." Ident)* ("(" (Exp ("," Exp)*)? ")")?;
+syntax Inv = inv: Ident ("." Ident)* ("(" {Exp ","}* ")")?;
 
 syntax Tuple = tupla: "(" Ident ("," Ident)* ")";
 
@@ -81,34 +79,51 @@ syntax Firma = firma: "(" Params? ")" ":" Tipo;
 //syntax Exp = exp: (Inst | Num | Bool | Inv | Cond | String | Tuple | Impri | "(" Exp ")")
 //            ((Eqs | Ops) (Inst | Num | Bool | Inv | Cond | String | Tuple | Impri | "(" Exp ")"))*;
 
-syntax Cmp = cmp: (Inv | Num | String | Bool) (Eqs (Inv | Num | String | Bool))+;
+syntax Cmp = cmp: CmpAtom CmpTail+;
+
+syntax CmpAtom = cmpInv: Inv | cmpNum: Num | cmpString: String | cmpBool: Bool;
+
+syntax CmpTail = cmpTail: Eqs CmpAtom;
 
 //lexical StringChars = Char+;
 
 //syntax Pstr = pstr: "$" (Ident | "{" Exp "}" );
 
-syntax Rango = rango: (Num | Inv) "to" (Num | Inv);
+syntax Rango = rango: RangeBound "to" RangeBound;
 
-//syntax Loop = loop: "for" Ident name;
-syntax Loop = loopIn: "for" "(" (Tuple | Ident) "\<-" (Inv | Rango) ")" Cuerpo
+syntax RangeBound = rangeNum: Num | rangeInv: Inv;
+
+syntax Loop = loopIn: "for" "(" LoopVariable "\<-" LoopSource ")" Cuerpo 
             | loopArrow: "for" "(" Inv "-\>" Tuple ")" Cuerpo;
 
-syntax Exp = exp: ExpAtom ((Eqs | Ops) ExpAtom)*;
+syntax LoopVariable = loopTuple: Tuple | loopIdent: Ident;
+
+syntax LoopSource = loopInvocation: Inv | loopRange: Rango;
+
+syntax Exp = exp: ExpAtom ExpTail*;
+
+syntax ExpTail = eqsTail: Eqs ExpAtom | opsTail: Ops ExpAtom;
 
 syntax ExpAtom = instanceExp: Inst | numberExp: Num | booleanExp: Bool | invocationExp: Inv 
-                | conditionalExp: Cond | stringExp: String | tupleExp: Tuple | printExp: Impri 
-                | parenthesizedExp: "(" Exp ")";
+               | conditionalExp: Cond | stringExp: String | tupleExp: Tuple | printExp: Impri 
+               | parenthesizedExp: "(" Exp ")";
 
 syntax String = string: "\"" StringPart* "\"";
 
-syntax StringPart = stringText: StringChars | stringInterpolation: Pstr;
+syntax StringPart = stringText: Char | stringInterpolation: Pstr;
 
 syntax Pstr = interpolatedIdent: "$" Ident | interpolatedExp: "$" "{" Exp "}";
 
-syntax Cond = cond: "if" "neg"? (Cmp | Inv | Bool) "then" Cuerpo "else" Cuerpo;
+syntax Cond = cond: "if" CondTest "then" Cuerpo "else" Cuerpo;
+
+syntax CondTest = condNegated: "neg" Condition | condPlain: Condition;
+
+syntax Condition = conditionCmp: Cmp | conditionInv: Inv | conditionBool: Bool;
 
 syntax Cuerpo = cuerpoBloque: "{" Program "}" | cuerpoExp: Exp;
 
-syntax Impri = impri: ("print" | "println") "(" Exp ")";
+syntax Impri = impri: PrintKind "(" Exp ")";
+
+syntax PrintKind = printKind: "print" | printlnKind: "println";
 
 lexical Nop = "+"|"-";
