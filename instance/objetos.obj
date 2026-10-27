@@ -1,0 +1,4 @@
+object Animal
+object Dog extends Animal
+object Cat extends Animal
+object List[+A](val item: A)
