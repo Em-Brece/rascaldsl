@@ -33,8 +33,6 @@ lexical Eqs = "\<=" | "\>=" | "\<\>" | "==" | "\<" | "\>"| And | Or | In;
 
 lexical Char = Letter | Digit | Punt | Ops | " ";
 
-lexical StringChars = ![$"\"\"\\n\r]+;
-
 lexical Ident = (Letter(Letter|Digit|"_")* !>> [a-zA-Z0-9_]) \ Reserved;
 
 keyword Reserved = "object" | "extends" | "method" | "val" | "var" | "new" | "override"
@@ -112,7 +110,7 @@ syntax ExpAtom = instanceExp: Inst | numberExp: Num | booleanExp: Bool | invocat
 
 syntax String = string: "\"" StringPart* "\"";
 
-syntax StringPart = stringText: StringChars | stringInterpolation: Pstr;
+syntax StringPart = stringText: Char | stringInterpolation: Pstr;
 
 syntax Pstr = interpolatedIdent: "$" Ident | interpolatedExp: "$" "{" Exp "}";
 
