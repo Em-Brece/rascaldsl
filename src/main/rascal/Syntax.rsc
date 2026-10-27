@@ -31,6 +31,8 @@ lexical Eqs = "\<=" | "\>=" | "\<\>" | "==" | "\<" | "\>"| And | Or | In;
 
 lexical Char = Letter | Digit | Punt | Ops | " ";
 
+lexical StringChars = strChar: ![$"\\\"\\n\r]+;
+
 lexical Ident = (Letter(Letter|Digit|"_")* !>> [a-zA-Z0-9_]) \ Reserved;
 
 keyword Reserved = "object" | "extends" | "method" | "val" | "var" | "new" | "override"
@@ -70,8 +72,8 @@ syntax Asig = asig: Ident "=" Exp;
 
 syntax Fnew = fnew: "method" Ident ("(" Params? ")"":"Tipo)?"{" Program "}";
 
-syntax Exp = exp: (Inst | Num | Bool | Inv | Cond | String | Tuple | Impri | "(" Exp ")")
-            ((Eqs | Ops) (Inst | Num | Bool | Inv | Cond | String | Tuple | Impri | "(" Exp ")"))*;
+//syntax Exp = exp: (Inst | Num | Bool | Inv | Cond | String | Tuple | Impri | "(" Exp ")")
+//            ((Eqs | Ops) (Inst | Num | Bool | Inv | Cond | String | Tuple | Impri | "(" Exp ")"))*;
 
 syntax Cmp = cmp: (Inv | Num | String | Bool) (Eqs (Inv | Num | String | Bool))+;
 
@@ -79,9 +81,22 @@ lexical StringChars = Char+;
 
 syntax String = string: "\"" (StringChars | Pstr)* "\"";
 
-//syntax Pstr = pstr: "$" (Ident | "{"  Exp "}");
-syntax Pstr = pstr: $"{" Exp "}";
+//syntax Pstr = pstr: "$" (Ident | "{" Exp "}" );
 
 syntax Rango = rango: (Num | Inv) "to" (Num | Inv);
 
-syntax Loop = loop: "for" Ident name;
+//syntax Loop = loop: "for" Ident name;
+syntax Loop = loopIn: "for" "(" (Tuple | Ident) "\<-" (Inv | Rango) ")" Cuerpo
+            | loopArrow: "for" "(" Inv "-\>" Tuple ")" Cuerpo;
+
+syntax Exp = exp: ExpAtom ((Eqs | Ops) ExpAtom)*;
+
+syntax ExpAtom = instanceExp: Inst | numberExp: Num | booleanExp: Bool | invocationExp: Inv 
+                | conditionalExp: Cond | stringExp: String | tupleExp: Tuple | printExp: Impri 
+                | parenthesizedExp: "(" Exp ")";
+
+syntax String = string: "\"" StringPart* "\"";
+
+syntax StringPart = stringText: StringChars | stringInterpolation: Pstr;
+
+syntax Pstr = interpolatedIdent: "$" Ident | interpolatedExp: "$" "{" Exp "}";
