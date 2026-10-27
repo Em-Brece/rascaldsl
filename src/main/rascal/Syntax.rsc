@@ -3,7 +3,11 @@ module Syntax
 layout Layout = WhitespaceAndComment* !>> [\ \t\n\r] !>> "//";
 lexical WhitespaceAndComment = [\ \t\n\r] | @category="Comment" "//" ![\n]* $;
 
-start syntax ObjModule = objModule: (Inicializar|Fnew)+;
+start syntax ObjModule = objModule: Declaracion+;
+
+syntax Declaracion = declInic: Inicializar| declFnew: Fnew;
+
+syntax Sentencia = sentInic: Inicializar | sentFnew: Fnew| sentAsig: Asig| sentLoop: Loop| sentExp: Exp;
 
 lexical Letter = [a-zA-Z];
 
@@ -14,8 +18,6 @@ lexical Num = Digit+ !>> [0-9];
 lexical Bool = ("true"|"false") !>> [a-zA-Z0-9_];
 
 lexical Punt = "(" | ")" | "[" | "]" | ":" | "." | ",";
-
-lexical Nop = "+" | "-";
 
 lexical Aop = "*" | "/" | "%" | "**";
 
@@ -40,7 +42,7 @@ keyword Reserved = "object" | "extends" | "method" | "val" | "var" | "new" | "ov
                  | "true" | "false" | "and" | "or" | "neg" | "in";
 
 
-syntax Inicializar = objDecl: Obj Atribute? ("(" Params ")")? ("extends" Tipo)? | varDecl: Vars | memberDef: Ident Fobject;
+syntax Inicializar = inicializar: Obj Atribute? ("(" Params ")")? ("extends" Tipo)? | varDecl: Vars | memberDef: Ident Fobject;
 
 syntax Obj = obj: "object" Ident;
 
@@ -52,9 +54,11 @@ syntax Tipo = tipo: Ident Atribute?;
 
 syntax Params = params: {Param ","}+;
 
-syntax Param = param: ("val"| "var")? Ident ":" Tipo;
+syntax Param = param: Modificador? Ident ":" Tipo;
 
-syntax Vars = vars: ("val"| "var") Ident (":" Tipo)? "=" Exp;
+lexical Modificador = ("val" | "var") !>> [a-zA-Z0-9_];
+
+syntax Vars = vars: Modificador Ident (":" Tipo)? "=" Exp;
 
 syntax Inst = inst: "new" Tipo ("(" Exp ("," Exp)* ")")? ("{" Ovri+ "}")?;
 
@@ -66,11 +70,13 @@ syntax Tuple = tupla: "(" Ident ("," Ident)* ")";
 
 syntax Fobject = fobject: "." Ident "=" "method" "(" Params? ")" ":" Tipo ("{" Program "}")?;
 
-syntax Program = program: (Inicializar|Fnew|Asig|Loop|Exp)+;
+syntax Program = program: Sentencia+;
 
 syntax Asig = asig: Ident "=" Exp;
 
-syntax Fnew = fnew: "method" Ident ("(" Params? ")"":"Tipo)?"{" Program "}";
+syntax Fnew = fnew: "method" Ident Firma? "{" Program "}";
+
+syntax Firma = firma: "(" Params? ")" ":" Tipo;
 
 //syntax Exp = exp: (Inst | Num | Bool | Inv | Cond | String | Tuple | Impri | "(" Exp ")")
 //            ((Eqs | Ops) (Inst | Num | Bool | Inv | Cond | String | Tuple | Impri | "(" Exp ")"))*;
@@ -104,3 +110,5 @@ syntax Cond = cond: "if" "neg"? (Cmp | Inv | Bool) "then" Cuerpo "else" Cuerpo;
 syntax Cuerpo = cuerpoBloque: "{" Program "}" | cuerpoExp: Exp;
 
 syntax Impri = impri: ("print" | "println") "(" Exp ")";
+
+lexical Nop = "+"|"-";
