@@ -62,6 +62,6 @@ syntax Asig = asig: Ident "=" Exp;
 
 syntax Fnew = fnew: "method" Ident ("(" Params? ")"":"Tipo)?"{" Program "}";
 
-syntax Exp = exp: inst | num | bool | inv | tuple | impri | "(" Exp ")";
+syntax Exp = exp: Ident;
 
 syntax Loop = loop: "for" Ident name;
