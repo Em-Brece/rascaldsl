@@ -31,7 +31,7 @@ lexical Eqs = "\<=" | "\>=" | "\<\>" | "==" | "\<" | "\>"| And | Or | In;
 
 lexical Char = Letter | Digit | Punt | Ops | " ";
 
-lexical StringChars = strChar: ![$"\\\"\\n\r]+;
+lexical StringChars = ![$"\"\"\\n\r]+;
 
 lexical Ident = (Letter(Letter|Digit|"_")* !>> [a-zA-Z0-9_]) \ Reserved;
 
@@ -77,9 +77,7 @@ syntax Fnew = fnew: "method" Ident ("(" Params? ")"":"Tipo)?"{" Program "}";
 
 syntax Cmp = cmp: (Inv | Num | String | Bool) (Eqs (Inv | Num | String | Bool))+;
 
-lexical StringChars = Char+;
-
-syntax String = string: "\"" (StringChars | Pstr)* "\"";
+//lexical StringChars = Char+;
 
 //syntax Pstr = pstr: "$" (Ident | "{" Exp "}" );
 
@@ -100,3 +98,9 @@ syntax String = string: "\"" StringPart* "\"";
 syntax StringPart = stringText: StringChars | stringInterpolation: Pstr;
 
 syntax Pstr = interpolatedIdent: "$" Ident | interpolatedExp: "$" "{" Exp "}";
+
+syntax Cond = cond: "if" "neg"? (Cmp | Inv | Bool) "then" Cuerpo "else" Cuerpo;
+
+syntax Cuerpo = cuerpoBloque: "{" Program "}" | cuerpoExp: Exp;
+
+syntax Impri = impri: ("print" | "println") "(" Exp ")";
