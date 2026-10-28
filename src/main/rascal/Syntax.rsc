@@ -5,9 +5,13 @@ lexical WhitespaceAndComment = [\ \t\n\r] | @category="Comment" "//" ![\n]* $;
 
 start syntax ObjModule = objModule: Declaracion+;
 
-syntax Declaracion = declInic: Inicializar| declFnew: Fnew;
+syntax Declaracion = declInic: Inicializar | declFnew: Fnew;
 
-syntax Sentencia = sentInic: Inicializar | sentFnew: Fnew| sentAsig: Asig| sentLoop: Loop| sentExp: Exp;
+syntax Sentencia = sentInic: Inicializar | sentFnew: Fnew | sentAsig: Asig | sentLoop: Loop | sentExp: ExpSent;
+
+syntax ExpSent = expSent: ExpHead ExpTail*;
+
+syntax ExpHead = headInst: Inst | headNum: Num | headBool: Bool | headInv: Inv | headCond: Cond | headString: String | headPrint: Impri;
 
 lexical Letter = [a-zA-Z];
 
@@ -29,22 +33,45 @@ lexical Or = "or" !>> [a-zA-Z0-9_];
 
 lexical In = "in" !>> [a-zA-Z0-9_];
 
-lexical Eqs = "\<=" | "\>=" | "\<\>" | "==" | "\<" | "\>"| And | Or | In;
+lexical Eqs = "\<=" | "\>=" | "\<\>" | "==" | "\<" | "\>" | And | Or | In;
 
 lexical Char = Letter | Digit | Punt | Ops | " ";
 
-lexical Ident = (Letter(Letter|Digit|"_")* !>> [a-zA-Z0-9_]) \ Reserved;
+lexical Nop = "+" | "-";
+
+lexical Neg = "neg" !>> [a-zA-Z0-9_];
+
+lexical PrintKw = ("print" | "println") !>> [a-zA-Z0-9_];
+
+lexical Modificador = ("val" | "var") !>> [a-zA-Z0-9_];
+
+lexical Ident = (Letter (Letter|Digit|"_")* !>> [a-zA-Z0-9_]) \ Reserved;
 
 keyword Reserved = "object" | "extends" | "method" | "val" | "var" | "new" | "override"
                  | "if" | "then" | "else" | "for" | "to" | "print" | "println"
                  | "true" | "false" | "and" | "or" | "neg" | "in";
 
+syntax Ctor   = ctor: "(" Params ")";
 
-syntax Inicializar = inicializar: Obj Atribute? ("(" Params ")")? ("extends" Tipo)? | varDecl: Vars | memberDef: Ident Fobject;
+syntax Ext    = ext: "extends" Tipo;
+
+syntax Tipado = tipado: ":" Tipo;
+
+syntax Bloque = bloque: "{" Program "}";
+
+syntax Args   = args: "(" {Exp ","}* ")";
+
+syntax Ovrs   = ovrs: "{" Ovri+ "}";
+
+syntax Campo  = campo: "." Ident;
+
+syntax Inicializar = inicializar: Obj Atribute? Ctor? Ext?
+                   | varDecl: Vars
+                   | memberDef: Ident Fobject;
 
 syntax Obj = obj: "object" Ident;
 
-syntax Atribute = atribute: "[" {Vari ","}+"]"; 
+syntax Atribute = atribute: "[" {Vari ","}+ "]";
 
 syntax Vari = vari: Nop? Tipo;
 
@@ -54,19 +81,17 @@ syntax Params = params: {Param ","}+;
 
 syntax Param = param: Modificador? Ident ":" Tipo;
 
-lexical Modificador = ("val" | "var") !>> [a-zA-Z0-9_];
+syntax Vars = vars: Modificador Ident Tipado? "=" Exp;
 
-syntax Vars = vars: Modificador Ident (":" Tipo)? "=" Exp;
+syntax Inst = inst: "new" Tipo Args? Ovrs?;
 
-syntax Inst = inst: "new" Tipo ("(" {Exp ","}+ ")")? ("{" Ovri+ "}")?;
+syntax Ovri = ovri: "override" Ident Firma? "=" Bloque;
 
-syntax Ovri = ovri: "override" Ident Firma? "=" "{" Program "}";
+syntax Inv = inv: Ident Campo* Args?;
 
-syntax Inv = inv: Ident ("." Ident)* ("(" {Exp ","}* ")")?;
+syntax Tuple = tupla: "(" Ident "," {Ident ","}+ ")";
 
-syntax Tuple = tupla: "(" Ident ("," Ident)* ")";
-
-syntax Fobject = fobject: "." Ident "=" "method" "(" Params? ")" ":" Tipo ("{" Program "}")?;
+syntax Fobject = fobject: "." Ident "=" "method" "(" Params? ")" ":" Tipo Bloque?;
 
 syntax Program = program: Sentencia+;
 
@@ -76,24 +101,17 @@ syntax Fnew = fnew: "method" Ident Firma? "{" Program "}";
 
 syntax Firma = firma: "(" Params? ")" ":" Tipo;
 
-//syntax Exp = exp: (Inst | Num | Bool | Inv | Cond | String | Tuple | Impri | "(" Exp ")")
-//            ((Eqs | Ops) (Inst | Num | Bool | Inv | Cond | String | Tuple | Impri | "(" Exp ")"))*;
-
 syntax Cmp = cmp: CmpAtom CmpTail+;
 
 syntax CmpAtom = cmpInv: Inv | cmpNum: Num | cmpString: String | cmpBool: Bool;
 
 syntax CmpTail = cmpTail: Eqs CmpAtom;
 
-//lexical StringChars = Char+;
-
-//syntax Pstr = pstr: "$" (Ident | "{" Exp "}" );
-
 syntax Rango = rango: RangeBound "to" RangeBound;
 
 syntax RangeBound = rangeNum: Num | rangeInv: Inv;
 
-syntax Loop = loopIn: "for" "(" LoopVariable "\<-" LoopSource ")" Cuerpo 
+syntax Loop = loopIn: "for" "(" LoopVariable "\<-" LoopSource ")" Cuerpo
             | loopArrow: "for" "(" Inv "-\>" Tuple ")" Cuerpo;
 
 syntax LoopVariable = loopTuple: Tuple | loopIdent: Ident;
@@ -104,26 +122,28 @@ syntax Exp = exp: ExpAtom ExpTail*;
 
 syntax ExpTail = eqsTail: Eqs ExpAtom | opsTail: Ops ExpAtom;
 
-syntax ExpAtom = instanceExp: Inst | numberExp: Num | booleanExp: Bool | invocationExp: Inv 
-               | conditionalExp: Cond | stringExp: String | tupleExp: Tuple | printExp: Impri 
+syntax ExpAtom = instanceExp: Inst | numberExp: Num | booleanExp: Bool | invocationExp: Inv
+               | conditionalExp: Cond | stringExp: String | tupleExp: Tuple | printExp: Impri
                | parenthesizedExp: "(" Exp ")";
 
-syntax String = string: "\"" StringPart* "\"";
+lexical StrPiece = Char | "$" Ident;
 
-syntax StringPart = stringText: Char | stringInterpolation: Pstr;
+lexical StringPlain = "\"" StrPiece* "\"";
 
-syntax Pstr = interpolatedIdent: "$" Ident | interpolatedExp: "$" "{" Exp "}";
+lexical StringStart = "\"" StrPiece* "${";
 
-syntax Cond = cond: "if" CondTest "then" Cuerpo "else" Cuerpo;
+lexical StringMid   = "}" StrPiece* "${";
 
-syntax CondTest = condNegated: "neg" Condition | condPlain: Condition;
+lexical StringEnd   = "}" StrPiece* "\"";
+
+syntax String = stringPlain: StringPlain | stringTemplate: StringStart Exp StringTail;
+
+syntax StringTail = tailMid: StringMid Exp StringTail | tailEnd: StringEnd;
+
+syntax Cond = cond: "if" Neg? Condition "then" Cuerpo "else" Cuerpo;
 
 syntax Condition = conditionCmp: Cmp | conditionInv: Inv | conditionBool: Bool;
 
 syntax Cuerpo = cuerpoBloque: "{" Program "}" | cuerpoExp: Exp;
 
-syntax Impri = impri: PrintKind "(" Exp ")";
-
-syntax PrintKind = printKind: "print" | printlnKind: "println";
-
-lexical Nop = "+"|"-";
+syntax Impri = impri: PrintKw "(" Exp ")";

@@ -1,7 +1,0 @@
-object Animal
-object Dog extends Animal
-object Puppy extends Dog
-object Food
-object DogFood extends Food
-object Transformer[-In, +Out]
-Transform.transform = method(input: In): Out
