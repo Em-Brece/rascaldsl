@@ -22,23 +22,19 @@ data Fnew = fnew(str name, list[Firma] firma, Program instruc);
 
 data Firma = firma(list[Params] parametros, Tipo tipo);
 
-data Inst = inst(Tipo tipo, list[Exp] argumentos, list[Ovri] overrides);
+data Inst = instArgs(Tipo tipo, Args argumentos, list[Ovri] overrides)
+         | instBare(Tipo tipo, list[Ovri] overrides);
 
 data Ovri = ovri(str name, list[Firma] firma, Program cuerpo);
 
-data Inv = inv(str name, list[str] fields, list[Exp] argumentos);
+data Inv = invCall(str name, list[str] fields, Args argumentos)
+         | invRef(str name, list[str] fields);
+
+data Args = noArgs() | someArgs(list[Exp] argumentos);
 
 data Tuple = tupla(str primero, list[str] restantes);
 
-data Cmp = cmp(CmpAtom primero, list[CmpTail] restantes);
-
-data CmpAtom = cmpInv(Inv valor) | cmpNum(str valor) | cmpString(String valor) | cmpBool(str valor);
-
-data CmpTail = cmpTail(str operador, CmpAtom operando);
-
-data RangeBound = rangeNum(str valor) | rangeInv(Inv valor);
-
-data Rango = rango(RangeBound inicio, RangeBound fin);
+data Rango = rango(ExpAtom inicio, ExpAtom fin);
 
 data LoopVariable = loopTuple(Tuple tupla) | loopIdent(str ident);
 
@@ -49,11 +45,14 @@ data Loop = loopIn(LoopVariable variable, LoopSource fuente, Cuerpo cuerpo)
 
 data Exp = exp(ExpAtom primero, list[ExpTail] restantes);
 
-data ExpTail = eqsTail(str operador, ExpAtom operando) | opsTail(str operador, ExpAtom operando);
+data ExpTail = expTail(Op operador, ExpAtom operando);
+
+data Op = opEqs(str valor) | opArith(str valor);
 
 data ExpAtom = instanceExp(Inst valor) | numberExp(str valor) | booleanExp(str valor) 
              | invocationExp(Inv valor) | conditionalExp(Cond valor) | stringExp(String valor)
-             | tupleExp(Tuple valor) | printExp(Impri valor) | parenthesizedExp(Exp valor);
+             | tupleExp(Tuple valor) | printExp(Impri valor) | negatedExp(ExpAtom valor)
+             | parenthesizedExp(Exp valor);
 
 data String = string(list[StringPart] partes);
 
@@ -61,12 +60,7 @@ data StringPart = stringText(str texto) | stringInterpolation(Pstr interpolacion
 
 data Pstr = interpolatedIdent(str nombre) | interpolatedExp(Exp expresion);
 
-data Cond = cond(CondTest condtest, Cuerpo entonces, Cuerpo sino);
-
-data CondTest = condNegated(Condition condicion)
-              | condPlain(Condition condicion);
-
-data Condition = conditionCmp(Cmp comparacion) | conditionInv(Inv invocacion) | conditionBool(str valor);
+data Cond = cond(Exp condicion, Cuerpo entonces, Cuerpo sino);
 
 data Cuerpo = cuerpoBloque(Program programa) | cuerpoExp(Exp expresion);
 

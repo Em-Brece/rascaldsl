@@ -29,14 +29,16 @@ lexical Or = "or" !>> [a-zA-Z0-9_];
 
 lexical In = "in" !>> [a-zA-Z0-9_];
 
-lexical Eqs = "\<=" | "\>=" | "\<\>" | "==" | "\<" | "\>"| And | Or | In;
-
-lexical Char = Letter | Digit | Punt | Ops | " ";
+// Relational/equality/boolean operators per the language spec:
+//   <  >  <=  >=  <>  =  =>  and  or  in
+// Note: "==" is NOT part of the language (equality is "="), and "=>" is required.
+lexical Eqs = "\<=" | "\>=" | "\<\>" | "=\>" | "\<" | "\>" | "=" | And | Or | In;
 
 lexical Ident = (Letter(Letter|Digit|"_")* !>> [a-zA-Z0-9_]) \ Reserved;
 
+// "to" eliminado
 keyword Reserved = "object" | "extends" | "method" | "val" | "var" | "new" | "override"
-                 | "if" | "then" | "else" | "for" | "to" | "print" | "println"
+                 | "if" | "then" | "else" | "for" | "print" | "println"
                  | "true" | "false" | "and" | "or" | "neg" | "in";
 
 
@@ -76,22 +78,7 @@ syntax Fnew = fnew: "method" Ident Firma? "{" Program "}";
 
 syntax Firma = firma: "(" Params? ")" ":" Tipo;
 
-//syntax Exp = exp: (Inst | Num | Bool | Inv | Cond | String | Tuple | Impri | "(" Exp ")")
-//            ((Eqs | Ops) (Inst | Num | Bool | Inv | Cond | String | Tuple | Impri | "(" Exp ")"))*;
-
-syntax Cmp = cmp: CmpAtom CmpTail+;
-
-syntax CmpAtom = cmpInv: Inv | cmpNum: Num | cmpString: String | cmpBool: Bool;
-
-syntax CmpTail = cmpTail: Eqs CmpAtom;
-
-//lexical StringChars = Char+;
-
-//syntax Pstr = pstr: "$" (Ident | "{" Exp "}" );
-
-syntax Rango = rango: RangeBound "to" RangeBound;
-
-syntax RangeBound = rangeNum: Num | rangeInv: Inv;
+syntax Rango = rango: ExpAtom "to" ExpAtom;
 
 syntax Loop = loopIn: "for" "(" LoopVariable "\<-" LoopSource ")" Cuerpo 
             | loopArrow: "for" "(" Inv "-\>" Tuple ")" Cuerpo;
@@ -100,25 +87,37 @@ syntax LoopVariable = loopTuple: Tuple | loopIdent: Ident;
 
 syntax LoopSource = loopInvocation: Inv | loopRange: Rango;
 
+// A single expression grammar is reused everywhere an atomic value or a
+// comparison can appear. This removes the former parallel CmpAtom/RangeAtom
+// definitions that duplicated Inv/Num/Bool/String atoms.
 syntax Exp = exp: ExpAtom ExpTail*;
 
-syntax ExpTail = eqsTail: Eqs ExpAtom | opsTail: Ops ExpAtom;
+// Equality/relational and arithmetic tails share the same shape, so they are a
+// single alternative instead of the former identical eqsTail/opsTail pair.
+syntax ExpTail = expTail: Op ExpAtom;
+
+syntax Op = opEqs: Eqs | opArith: Ops;
 
 syntax ExpAtom = instanceExp: Inst | numberExp: Num | booleanExp: Bool | invocationExp: Inv 
                | conditionalExp: Cond | stringExp: String | tupleExp: Tuple | printExp: Impri 
+               | negatedExp: "neg" ExpAtom
                | parenthesizedExp: "(" Exp ")";
 
 syntax String = string: "\"" StringPart* "\"";
 
-syntax StringPart = stringText: Char | stringInterpolation: Pstr;
+syntax StringPart = stringText: StringChars | stringInterpolation: Pstr;
 
+// A maximal run of characters that are neither the closing quote nor the
+// start of an interpolation ("$"). The follow restriction (!>>) forces the
+// run to be as long as possible, which removes the ambiguity of splitting
+// text into several adjacent StringChars tokens.
+lexical StringChars = ![\"$]+ !>> ![\"$];
+
+// Interpolation accepts "$ident" and "${ exp }" with optional spaces around
+// the braces, so "${x}" and "$ { x }" both parse.
 syntax Pstr = interpolatedIdent: "$" Ident | interpolatedExp: "$" "{" Exp "}";
 
-syntax Cond = cond: "if" CondTest "then" Cuerpo "else" Cuerpo;
-
-syntax CondTest = condNegated: "neg" Condition | condPlain: Condition;
-
-syntax Condition = conditionCmp: Cmp | conditionInv: Inv | conditionBool: Bool;
+syntax Cond = cond: "if" Exp "then" Cuerpo "else" Cuerpo;
 
 syntax Cuerpo = cuerpoBloque: "{" Program "}" | cuerpoExp: Exp;
 
