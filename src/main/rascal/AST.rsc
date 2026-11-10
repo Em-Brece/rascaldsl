@@ -79,4 +79,3 @@ data Sentencia = sentInic(Inicializar inicia) | sentFnew(Fnew funcion)| sentAsig
 data ObjModule = objModule(list[Declaracion] declaraciones);
 
 data Declaracion = declInic(Inicializar inicia) | declFnew(Fnew funcion);
-
