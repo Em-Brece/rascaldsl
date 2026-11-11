@@ -13,32 +13,62 @@ Conservamos la estructura y los nombres de los no terminales del documento del P
 | Elemento | Proyecto 1 (Word) | Proyecto 2 (Rascal) | Por qué |
 |---|---|---|---|
 | Símbolo inicial | module | ObjModule | module es palabra reservada de Rascal. |
-| inst | "new"? tipo (...) | instArgs/instBare: "new" obligatorio, Args y bloque de overrides opcional | Sin new, Foo(1) se podía leer como instancia y como invocación (Tipo e Inv empiezan igual): ambigüedad. Se separa la forma con argumentos de la forma sin argumentos (!>> [(]) para que new L(a) enganche los argumentos y no quede un (a) colgante. |
-| inv | ident ("." ident)* (...)? | invCall/invRef, con invRef !>> [(] | Misma idea que en inst: la forma sin argumentos no puede ir seguida de "(", de modo que f(1) se lee como una sola llamada y no como f seguido de (1). |
+| inst | "new"? tipo (...) | "new" Tipo Args? Ovrs? (new obligatorio) | Sin new, Foo(1) se podía leer como instancia y como invocación (Tipo e Inv empiezan igual): ambigüedad. |
 | cond | ("else" cuerpo)? | else obligatorio | Con else opcional, if a then if b then x else y tiene dos lecturas (else colgante). |
-| rango | num "to" num | ExpAtom "to" ExpAtom | Ampliación: los límites pueden ser cualquier átomo de expresión (un número o una invocación/variable), no solo un número. "to" no es palabra reservada. |
-| Operadores de comparación/igualdad | ... == ... | ... = ... y se agrega => | La igualdad del lenguaje es "=", no "==" (== no pertenece al lenguaje). Se agrega el operador "=>" que faltaba. |
-| neg | solo al inicio de la condición del if | operador de prefijo sobre un átomo (negatedExp) | neg debe poder usarse en cualquier expresión, no solo al comienzo de la condición de un if. |
-| Argumentos (Args) | ("(" exp ("," exp)* ")")? (al menos un argumento) | Args = noArgs "(" ")" o someArgs "(" Exp ("," Exp)* ")" | Pieza única compartida por inst e inv. Separar "()" del caso con argumentos evita una lista separada anulable dentro de un opcional (que hacía ambigua toda llamada) y permite new Foo() y f(). |
-| Tuple | "(" ident ("," ident)* ")" | "(" Ident ("," Ident)+ ")" (mínimo dos) | Una tupla de un solo elemento (a) chocaba con una expresión entre paréntesis. Una tupla siempre tiene al menos dos componentes. |
-| String / interpolación | cadena con $ident y ${...} | StringChars = ![\"$]+ (máximo) más Pstr para $ident y ${ exp } | El conjunto de caracteres anterior era muy restrictivo y los print generaban cadenas que no pertenecían al lenguaje. Ahora el texto admite prosa y puntuación normales, y la interpolación acepta espacios: ${x} y $ { x }. |
+| rango | num "to" num | RangeBound "to" RangeBound, donde el límite es Num o Inv | Ampliación: los límites pueden ser una invocación (por ejemplo una variable), no solo un número. |
+| Argumentos de inst | ("(" exp ("," exp)* ")")? (al menos un argumento) | Args = "(" {Exp ","}* ")" | Se reutiliza la misma pieza que en inv, por lo que new Foo() también se acepta. |
 | ident | letter (letter \| digit \| "_")* | Igual, pero sin las palabras reservadas (keyword Reserved) | Evita que if o object se lean como identificador. |
 | Palabras clave y operadores de palabra (and, or, in, neg, val, var, print, println, true, false) | Sin restricción | Terminan donde no siga letra, dígito o _ (!>>) | Evita que index se lea como in + dex. |
 | Espacios y comentarios | No se definían | layout: espacios, tabs, saltos de línea y comentarios // | Rascal necesita saber qué separa los símbolos entre sí. |
+| Sentencia que empieza con ( | program admitía cualquier exp como sentencia | ExpSent = ExpHead ExpTail*, y ExpHead no incluye tuple ni "(" exp ")" | Una sentencia que empezara con ( se confundía con una llamada de la sentencia anterior (ambigüedad). |
 
 ## 3. Decisiones de diseño
 
 - ; y \n no son terminales: las sentencias no llevan separador.
-- La forma sin argumentos de inst e inv no puede ir seguida de "(", para evitar la ambigüedad con una llamada y con una sentencia que empiece por "(".
-- else es obligatorio en Cond (evita el else colgante).
-- La igualdad es "=" (no "==") y existe el operador "=>".
-- neg es un operador de prefijo que funciona en cualquier expresión.
+- Una sentencia no puede empezar con (, para evitar la ambigüedad con una llamada.
+- else es obligatorio en Cond.
 - nop (+ / -) sigue reutilizado para el signo, la aritmética y la varianza de los genéricos, como en el Proyecto 1.
-- La gramática se verificó sin ambigüedades sobre los cuatro ejemplos del enunciado (instance/snippet1..4.obj), tanto al parsear como al construir el AST con implode.
 
 ## 4. Decisiones del AST
 
 - Las partes opcionales se representan como list[...] con 0 o 1 elemento.
 - Los identificadores, números, booleanos y operadores se guardan como str.
-- El texto de los strings se guarda por partes (texto literal e interpolaciones); los operadores se guardan como texto (por ejemplo "\>").
+- El texto de los strings se guarda tal cual aparece en el programa, con sus comillas; los operadores se guardan como texto (por ejemplo ">").
 - Los nombres de los constructores del AST coinciden con las etiquetas de Syntax.rsc, que es lo que permite a implode emparejarlos automáticamente.
+
+---
+
+# Proyecto 3 – Objectilang: cambios a la gramática del Proyecto 2
+
+## 1. Correcciones de operadores
+
+- La igualdad del lenguaje es `=`, no `==`. Se eliminó `==` porque no pertenece al lenguaje.
+- Se agregó el operador `=>`, que faltaba.
+- `to` dejó de tratarse como palabra reservada; ahora puede usarse como identificador.
+
+## 2. `neg` como operador general
+
+Antes `neg` solo funcionaba al inicio de la condición de un `if`. Ahora es un operador de prefijo (`negatedExp: "neg" ExpAtom`) que funciona en cualquier expresión.
+
+## 3. Cadenas e interpolación
+
+- El texto de las cadenas es `StringChars = ![\"$]+` (máximo posible), por lo que admite prosa y puntuación normales; antes el conjunto de caracteres era demasiado restrictivo y los `print` generaban cadenas que no pertenecían al lenguaje.
+- La interpolación acepta espacios: tanto `${x}` como `$ { x }` son válidos.
+
+## 4. Eliminación de ambigüedades
+
+- **`Inst` (`new`):** se separa en `instArgs` (con argumentos) e `instBare` (sin argumentos, con `!>> [(]`), para que `new L(a)` enganche los argumentos y `new` siga siendo obligatorio. Esto evita confundir una instancia con una invocación.
+- **`Inv`:** se separa en `invCall` e `invRef` (con `!>> [(]`), de modo que `f(1)` se lee como una sola llamada y no como `f` seguido de `(1)`.
+- **`Args`:** pieza única compartida por `Inst` e `Inv`, con `noArgs` (`()`) y `someArgs` separados. Esto evita una lista separada anulable dentro de un opcional y permite `f()` y `new L()`.
+- **`Tuple`:** ahora requiere mínimo dos componentes (`"(" Ident ("," Ident)+ ")"`), para que `(a)` no choque con una expresión entre paréntesis.
+
+## 5. Simplificación de la gramática de expresiones
+
+- Se unificaron las antiguas colas `eqsTail` y `opsTail`, que eran idénticas, en un solo `ExpTail` con `Op = opEqs | opArith`.
+- Se eliminaron los no terminales redundantes de comparación y de rango que duplicaban los átomos (`Inv`, `Num`, `Bool`, `String`); ahora se reutiliza `ExpAtom`/`Exp`.
+
+## 6. Otras decisiones
+
+- `else` es obligatorio en `Cond`, para evitar el `else` colgante.
+- La gramática se verificó sin ambigüedades sobre los cuatro ejemplos del enunciado (`instance/snippet1..4.obj`), tanto al parsear como al construir el AST con `implode`.
+- Los nombres de los constructores del AST coinciden con las etiquetas de `Syntax.rsc`, lo que permite a `implode` emparejarlos automáticamente.
