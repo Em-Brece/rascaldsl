@@ -10,7 +10,7 @@ import Relation;
 import Syntax;
 
 PathConfig pcfg = getProjectPathConfig(|project://rascaldsl|);
-Language objLang = language(pcfg, "Objectilang", {"obj"}, "Plugin", "contribs");
+Language objLang = language(pcfg, "Objectilang", {"ol"}, "Plugin", "contribs");
 
 set[LanguageService] contribs() = {
     parsing(parser(#start[ObjModule]))

@@ -64,7 +64,7 @@ syntax Ovri = ovri: "override" Ident Firma? "=" "{" Program "}";
 syntax Inv = invCall: Ident ("." Ident)* Args
            | invRef:  Ident ("." Ident)* !>> [(];
 
-syntax Args = noArgs: "(" ")" | someArgs: "(" Exp ("," Exp)* ")";
+syntax Args = noArgs: "(" ")" | someArgs: "(" {Exp ","}+ ")";
 
 syntax Tuple = tupla: "(" Ident ("," Ident)+ ")";
 
