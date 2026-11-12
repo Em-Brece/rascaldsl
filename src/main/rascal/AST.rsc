@@ -49,10 +49,10 @@ data ExpTail = expTail(Op operador, ExpAtom operando);
 
 data Op = opEqs(str valor) | opArith(str valor);
 
-data ExpAtom = instanceExp(Inst valor) | numberExp(str valor) | booleanExp(str valor) 
-             | invocationExp(Inv valor) | conditionalExp(Cond valor) | stringExp(String valor)
-             | tupleExp(Tuple valor) | printExp(Impri valor) | negatedExp(ExpAtom valor)
-             | parenthesizedExp(Exp valor);
+data ExpAtom = instanceExp(Inst instancia) | numberExp(str numero) | booleanExp(str booleano) 
+             | invocationExp(Inv invocacion) | conditionalExp(Cond condicional) | stringExp(String cadena)
+             | tupleExp(Tuple tupla) | printExp(Impri impresion) | negatedExp(ExpAtom negado)
+             | parenthesizedExp(Exp agrupada);
 
 data String = string(list[StringPart] partes);
 
