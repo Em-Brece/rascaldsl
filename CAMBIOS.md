@@ -38,37 +38,62 @@ Conservamos la estructura y los nombres de los no terminales del documento del P
 
 ---
 
-# Proyecto 3 – Objectilang: cambios a la gramática del Proyecto 2
+# Proyecto 3
 
-## 1. Correcciones de operadores
+## 1. Preparar la gramática para que el lenguaje funcione
 
-- La igualdad del lenguaje es `=`, no `==`. Se eliminó `==` porque no pertenece al lenguaje.
-- Se agregó el operador `=>`, que faltaba.
-- `to` dejó de tratarse como palabra reservada; ahora puede usarse como identificador.
+Antes de poder ejecutar o tipar, se corrigió la gramática para que aceptara exactamente el
+lenguaje del enunciado y sin ambigüedades:
 
-## 2. `neg` como operador general
+- Se ajustaron los operadores al conjunto real del Proyecto 1 (la igualdad es `=`, se
+  agregó `=>`) y `neg` pasó a ser un operador de prefijo general.
+- Las cadenas y su interpolación (`$ident`, `${exp}`) se ajustaron al alfabeto del lenguaje.
+- Se eliminaron las ambigüedades restantes separando producciones que empezaban igual
+  (instancia vs. invocación, llamada vs. referencia, tupla vs. paréntesis). La gramática se
+  verificó sin ambigüedades sobre los cuatro ejemplos, tanto al parsear como al construir el
+  AST con `implode`.
 
-Antes `neg` solo funcionaba al inicio de la condición de un `if`. Ahora es un operador de prefijo (`negatedExp: "neg" ExpAtom`) que funciona en cualquier expresión.
+## 2. Ejecución mediante generación de código
 
-## 3. Cadenas e interpolación
+- Se definió una familia de funciones `generate(...)` sobrecargadas, una por tipo de nodo,
+  que recorren el AST y producen el texto correspondiente. Rascal elige la variante por el
+  tipo del nodo, igual que en el ejemplo del tutorial.
+- Para unir las partes se usaron únicamente operaciones del vocabulario del tutorial
+  (concatenación e `intercalate`), evitando utilidades ajenas a él.
+- `Main` expone un punto de entrada que genera y muestra en consola los cuatro ejemplos,
+  conservando solo lo necesario para ejecutarlos.
 
-- El texto de las cadenas es `StringChars = ![\"$]+` (máximo posible), por lo que admite prosa y puntuación normales; antes el conjunto de caracteres era demasiado restrictivo y los `print` generaban cadenas que no pertenecían al lenguaje.
-- La interpolación acepta espacios: tanto `${x}` como `$ { x }` son válidos.
+## 3. Tipos y chequeo con TypePal
 
-## 4. Eliminación de ambigüedades
+El chequeo de tipos se delega a **TypePal**. Se instaló la versión compatible con la versión
+de Rascal del proyecto y se declaró como dependencia. Sobre ella se definió:
 
-- **`Inst` (`new`):** se separa en `instArgs` (con argumentos) e `instBare` (sin argumentos, con `!>> [(]`), para que `new L(a)` enganche los argumentos y `new` siga siendo obligatorio. Esto evita confundir una instancia con una invocación.
-- **`Inv`:** se separa en `invCall` e `invRef` (con `!>> [(]`), de modo que `f(1)` se lee como una sola llamada y no como `f` seguido de `(1)`.
-- **`Args`:** pieza única compartida por `Inst` e `Inv`, con `noArgs` (`()`) y `someArgs` separados. Esto evita una lista separada anulable dentro de un opcional y permite `f()` y `new L()`.
-- **`Tuple`:** ahora requiere mínimo dos componentes (`"(" Ident ("," Ident)+ ")"`), para que `(a)` no choque con una expresión entre paréntesis.
+- **Tipos básicos del lenguaje** (Int, Bool, String y Char) y los tipos de objeto, que
+  llevan sus parámetros genéricos. Char se incorporó en esta fase porque el lenguaje lo
+  requiere a nivel de literales.
+- **Reglas de recolección** (`collect`/`define`/`use`) que registran dónde se declara cada
+  nombre y dónde se usa, y **reglas de tipo** para expresiones, operadores, condicionales,
+  declaraciones y asignaciones, comprobando que los tipos encajen con lo declarado.
+- **Genéricos con varianza.** El subtipado respeta los modificadores `+` (covarianza) y `-`
+  (contravarianza) de los parámetros de tipo, tal como se describe en el enunciado, además
+  de inferir los argumentos de tipo al instanciar (`new`).
 
-## 5. Simplificación de la gramática de expresiones
+## 5. "Lo que se usa debe existir"
 
-- Se unificaron las antiguas colas `eqsTail` y `opsTail`, que eran idénticas, en un solo `ExpTail` con `Op = opEqs | opArith`.
-- Se eliminaron los no terminales redundantes de comparación y de rango que duplicaban los átomos (`Inv`, `Num`, `Bool`, `String`); ahora se reutiliza `ExpAtom`/`Exp`.
+Como regla de validación adicional, toda referencia a una variable, objeto, método o
+parámetro de tipo debe estar declarada previamente. Si no lo está, el chequeador reporta un
+error de elemento indefinido. Esta regla cae de forma natural de las reglas `use` de TypePal.
 
-## 6. Otras decisiones
+## 6. Decisiones y limitación conocida
 
-- `else` es obligatorio en `Cond`, para evitar el `else` colgante.
-- La gramática se verificó sin ambigüedades sobre los cuatro ejemplos del enunciado (`instance/snippet1..4.obj`), tanto al parsear como al construir el AST con `implode`.
-- Los nombres de los constructores del AST coinciden con las etiquetas de `Syntax.rsc`, lo que permite a `implode` emparejarlos automáticamente.
+- Los nombres de los constructores del AST coinciden con las etiquetas de `Syntax.rsc`, lo
+  que permite a `implode` emparejarlos automáticamente, y una pasada de desambiguación
+  resuelve los casos límite (por ejemplo, asignación frente a igualdad) antes del chequeo.
+- **Limitación conocida:** cuando un método se declara **fuera del cuerpo del objeto** y
+  referencia los parámetros genéricos de ese objeto (como `Transformer.transform = method(input: In): Out`
+  en el Snippet 3), esos parámetros no quedan en el alcance del método, por lo que el
+  chequeador los reporta como indefinidos. Los métodos externos sin genéricos y los
+  genéricos declarados dentro del cuerpo del objeto sí se verifican correctamente. Nótese
+  además que el propio enunciado del Proyecto 1 escribe este ejemplo de forma inconsistente
+  (define `object Transformer` pero luego `Transform.transform`); en los ejemplos se usó el
+  nombre coherente `Transformer`.
