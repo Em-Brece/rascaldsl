@@ -2,198 +2,250 @@ module Generator
 
 import AST;
 import Implode;
+import Checker;
 import List;
+import String;
 import IO;
+import Message;
 
-// Carga el archivo .ol, lo pasa en AST y muestra en consola el codigo generado
+// ============================================================
+// Punto de entrada
+// ============================================================
+// Carga el archivo .ol, construye el AST y muestra en consola el codigo generado.
 void generar(loc archivo) {
     ObjModule ast = cargar(archivo);
     println(generate(ast));
 }
 
-// Genera todo el modulo
+// Igual que generar, pero primero corre el chequeo de tipos:
+// si hay errores los imprime y NO genera codigo.
+void generarConChequeo(loc archivo) {
+    TModel modelo = modeloDesdeArbol(arbolLimpio(archivo));
+    if (modelo.messages != []) {
+        for (Message m <- modelo.messages) println(m);
+        return;
+    }
+    println(generate(cargar(archivo)));
+}
+
+// ============================================================
+// Ayudantes
+// ============================================================
+// Une una lista de cadenas sin separador
+str concatLista(list[str] partes) = intercalate("", partes);
+
+// Sangra cada linea del texto con dos espacios
+str sangrar(str texto) = intercalate("\n", [ "  " + l | str l <- split("\n", texto) ]);
+
+// Bloque "{ ... }" con el programa sangrado
+str bloque(Program p) = "{\n" + sangrar(generate(p)) + "\n}";
+
+// Une las partes no vacias con un separador
+str unir(str sep, list[str] partes) = intercalate(sep, [ p | str p <- partes, p != "" ]);
+
+// ============================================================
+// Modulo y declaraciones
+// ============================================================
 str generate(objModule(list[Declaracion] decls)) =
     intercalate("\n", [ generate(d) | Declaracion d <- decls ]);
 
-// Genera init o fnew
 str generate(declInic(Inicializar ini)) = generate(ini);
 str generate(declFnew(Fnew f)) = generate(f);
 
-// Genera una definicion de objeto
-str generate(inicializar(Obj ob, list[Atribute] atrs, list[Params] ps, list[Tipo] ext)) =
-    generate(ob) + concatLista([ generate(a) | Atribute a <- atrs ])
-  + concatLista([ "(" + generate(p) + ")" | Params p <- ps ])
-  + concatLista([ " extends " + generate(t) | Tipo t <- ext ]);
+// ============================================================
+// Objetos, tipos y parametros
+// ============================================================
+// object Nombre[T](params) extends Padre
+str generate(inicializar(Obj ob, list[Atribute] atrs, list[CtorParams] ps, list[Extiende] ext)) =
+    generate(ob)
+  + concatLista([ generate(a) | Atribute a <- atrs ])
+  + concatLista([ generate(p) | CtorParams p <- ps ])
+  + concatLista([ generate(e) | Extiende e <- ext ]);
 
-// Genera la declaracion de variable
 str generate(varDecl(Vars v)) = generate(v);
 
-// Genera la definicion de un miembro de clase
+// Cat.talk = method(...): T { ... }
 str generate(memberDef(str name, Fobject fo)) = name + generate(fo);
 
-// Genera un object
 str generate(obj(str name)) = "object " + name;
 
-// Genera un tipo con atributos genericos si tiene
+str generate(ctorParams(Params p)) = "(" + generate(p) + ")";
+str generate(extiende(Tipo t)) = " extends " + generate(t);
+
+// Nombre o Nombre[+A, B]
 str generate(tipo(str name, list[Atribute] atrs)) =
     name + concatLista([ generate(a) | Atribute a <- atrs ]);
 
-// Genera atributos
 str generate(atribute(list[Vari] vs)) =
     "[" + intercalate(", ", [ generate(v) | Vari v <- vs ]) + "]";
 
-// Genera la variante de valor
 str generate(vari(list[str] varianza, Tipo t)) =
     concatLista(varianza) + generate(t);
 
-// Genera una lista de parametros
 str generate(params(list[Param] ps)) =
     intercalate(", ", [ generate(p) | Param p <- ps ]);
 
-// Genera un parametro
 str generate(param(list[str] modif, str name, Tipo t)) =
     concatLista([ m + " " | str m <- modif ]) + name + ": " + generate(t);
 
-// Genera una declaracion de variable
+// val x: T = e   |   var x = e
 str generate(vars(str modif, str name, list[Tipo] tipado, Exp e)) =
     modif + " " + name
   + concatLista([ ": " + generate(t) | Tipo t <- tipado ])
   + " = " + generate(e);
 
-// Genera un metodo
+// ============================================================
+// Metodos
+// ============================================================
 str generate(fnew(str name, list[Firma] firma, Program cuerpo)) =
     "method " + name
   + concatLista([ generate(f) | Firma f <- firma ])
-  + " {\n" + generate(cuerpo) + "\n}";
+  + " " + bloque(cuerpo);
 
-// Genera una firma de metodo
 str generate(firma(list[Params] ps, Tipo t)) =
     "(" + concatLista([ generate(p) | Params p <- ps ]) + "): " + generate(t);
 
-// Genera la definicion de un miembro
+// .talk = method(params): T { ... }
 str generate(fobject(str name, list[Params] ps, Tipo t, list[Program] cuerpo)) =
     "." + name + " = method("
   + concatLista([ generate(p) | Params p <- ps ])
   + "): " + generate(t)
-  + concatLista([ " {\n" + generate(pr) + "\n}" | Program pr <- cuerpo ]);
+  + concatLista([ " " + bloque(pr) | Program pr <- cuerpo ]);
 
-// Genera un programa
+// ============================================================
+// Programas y sentencias
+// ============================================================
 str generate(program(list[Sentencia] sents)) =
     intercalate("\n", [ generate(s) | Sentencia s <- sents ]);
 
-// Genera cada forma de sentencia
 str generate(sentInic(Inicializar i)) = generate(i);
 str generate(sentFnew(Fnew f)) = generate(f);
 str generate(sentAsig(Asig a)) = generate(a);
 str generate(sentLoop(Loop l)) = generate(l);
 str generate(sentExp(Exp e)) = generate(e);
 
-// Genera una asignacion
 str generate(asig(str name, Exp e)) = name + " = " + generate(e);
 
-// Genera una instanciacion con argumentos
+// ============================================================
+// Instancias, invocaciones, tuplas y rangos
+// ============================================================
 str generate(instArgs(Tipo t, Args a, list[Ovri] ovs)) =
     "new " + generate(t) + generate(a) + concatOverrides(ovs);
 
-// Genera una instanciacion sin argumentos
 str generate(instBare(Tipo t, list[Ovri] ovs)) =
     "new " + generate(t) + concatOverrides(ovs);
 
-// Genera un override
 str generate(ovri(str name, list[Firma] firma, Program cuerpo)) =
     "override " + name + concatLista([ generate(f) | Firma f <- firma ])
-  + " = {\n" + generate(cuerpo) + "\n}";
+  + " = " + bloque(cuerpo);
 
-// Genera una invocacion con argumentos
+// a.b.c(args)  (los campos ya traen el "." del lexer)
 str generate(invCall(str name, list[str] campos, Args a)) =
     name + concatLista(campos) + generate(a);
 
-// Genera una referencia a campos
+// a.b.c  (los campos ya traen el ".")
 str generate(invRef(str name, list[str] campos)) =
     name + concatLista(campos);
 
-// Genera la lista de argumentos
 str generate(noArgs()) = "()";
 str generate(someArgs(list[Exp] args)) =
     "(" + intercalate(", ", [ generate(e) | Exp e <- args ]) + ")";
 
-// Genera una tupla
+// (a, b, c)  (los elementos de resto ya traen la "," del lexer: se quita para reunir)
 str generate(tupla(str primero, list[str] resto)) =
-    "(" + primero + concatLista(resto) + ")";
+    "(" + intercalate(", ", [primero] + [ r[1..] | str r <- resto ]) + ")";
 
-// Genera un rango
 str generate(rango(ExpAtom ini, ExpAtom fin)) =
     generate(ini) + " to " + generate(fin);
 
-// Genera un for
+// ============================================================
+// Ciclos
+// ============================================================
 str generate(loopIn(LoopVariable v, LoopSource fuente, Cuerpo cuerpo)) =
     "for (" + generate(v) + " \<- " + generate(fuente) + ") " + generate(cuerpo);
 
-// Genera un for con flecha
 str generate(loopArrow(Inv i, Tuple t, Cuerpo cuerpo)) =
     "for (" + generate(i) + " -\> " + generate(t) + ") " + generate(cuerpo);
 
-// Genera la variable del bucle
 str generate(loopTuple(Tuple t)) = generate(t);
 str generate(loopIdent(str id)) = id;
 
-// Genera la fuente del bucle
 str generate(loopInvocation(Inv i)) = generate(i);
 str generate(loopRange(Rango r)) = generate(r);
 
-// Genera exp
-str generate(exp(ExpAtom primero, list[ExpTail] colas)) =
-    generate(primero) + concatLista([ generate(c) | ExpTail c <- colas ]);
+// ============================================================
+// Expresiones
+// Los parentesis del programa original se conservan como parenthesizedExp,
+// por eso no hace falta calcular precedencias al imprimir.
+// ============================================================
+str generate(expAtom(ExpAtom a)) = generate(a);
 
-// Genera la cola de exp
-str generate(expTail(Op op, ExpAtom operando)) =
-    " " + generate(op) + " " + generate(operando);
+str generate(expPow(Exp l, Exp r)) = generate(l) + " ** " + generate(r);
+str generate(expMul(Exp l, Exp r)) = generate(l) + " * " + generate(r);
+str generate(expDiv(Exp l, Exp r)) = generate(l) + " / " + generate(r);
+str generate(expMod(Exp l, Exp r)) = generate(l) + " % " + generate(r);
+str generate(expAdd(Exp l, Exp r)) = generate(l) + " + " + generate(r);
+str generate(expSub(Exp l, Exp r)) = generate(l) + " - " + generate(r);
 
-// Genera el operador
-str generate(opEqs(str txt)) = txt;
-str generate(opArith(str txt)) = txt;
+str generate(expLt(Exp l, Exp r)) = generate(l) + " \< " + generate(r);
+str generate(expGt(Exp l, Exp r)) = generate(l) + " \> " + generate(r);
+str generate(expLe(Exp l, Exp r)) = generate(l) + " \<= " + generate(r);
+str generate(expGe(Exp l, Exp r)) = generate(l) + " \>= " + generate(r);
+str generate(expNe(Exp l, Exp r)) = generate(l) + " \<\> " + generate(r);
+str generate(expEq(Exp l, Exp r)) = generate(l) + " = " + generate(r);
 
-// Genera cada atom de exp
+str generate(expIn(Exp l, Exp r)) = generate(l) + " in " + generate(r);
+str generate(expInRango(Exp l, Rango rg)) = generate(l) + " in " + generate(rg);
+
+str generate(expNeg(Exp e)) = "neg " + generate(e);
+str generate(expAnd(Exp l, Exp r)) = generate(l) + " and " + generate(r);
+str generate(expOr(Exp l, Exp r)) = generate(l) + " or " + generate(r);
+str generate(expImp(Exp l, Exp r)) = generate(l) + " =\> " + generate(r);
+
+// ============================================================
+// Atomos
+// ============================================================
 str generate(instanceExp(Inst i)) = generate(i);
 str generate(numberExp(str n)) = n;
 str generate(booleanExp(str b)) = b;
+str generate(charExp(str c)) = c;          // el lexico Char ya trae sus comillas simples
 str generate(invocationExp(Inv i)) = generate(i);
 str generate(conditionalExp(Cond c)) = generate(c);
 str generate(stringExp(String s)) = generate(s);
-str generate(tupleExp(Tuple t))= generate(t);
+str generate(tupleExp(Tuple t)) = generate(t);
 str generate(printExp(Impri p)) = generate(p);
-str generate(negatedExp(ExpAtom a)) = "neg " + generate(a);
 str generate(parenthesizedExp(Exp e)) = "(" + generate(e) + ")";
 
-// Genera una cadena
+// ============================================================
+// Cadenas: texto literal, $ident y ${exp}
+// ============================================================
+str generate(emptyString(str vacio)) = vacio;
+
 str generate(string(list[StringPart] partes)) =
     "\"" + concatLista([ generate(p) | StringPart p <- partes ]) + "\"";
 
-// Genera una parte de cadena
-str generate(stringText(str t)) = t;
+str generate(stringText(str texto)) = texto;
 str generate(stringInterpolation(Pstr p)) = generate(p);
 
-// Genera una interpolacion
 str generate(interpolatedIdent(str nombre)) = "$" + nombre;
 str generate(interpolatedExp(Exp e)) = "${" + generate(e) + "}";
 
-// Genera condicional
+// ============================================================
+// Control
+// ============================================================
 str generate(cond(Exp c, Cuerpo ent, Cuerpo sino)) =
     "if " + generate(c) + " then " + generate(ent) + " else " + generate(sino);
 
-// Genera el cuerpo
-str generate(cuerpoBloque(Program p)) = "{\n" + generate(p) + "\n}";
+str generate(cuerpoBloque(Program p)) = bloque(p);
 str generate(cuerpoExp(Exp e)) = generate(e);
 
-// Genera una print
 str generate(impri(PrintKind k, Exp e)) = generate(k) + "(" + generate(e) + ")";
 str generate(printKind()) = "print";
 str generate(printlnKind()) = "println";
 
-// Une una lista de cadenas sin separador
-str concatLista(list[str] partes) = intercalate("", partes);
-
-// Genera el bloque de overrides
+// ============================================================
+// Overrides de una instancia: new T(...) { override ... }
+// ============================================================
 str concatOverrides([]) = "";
 default str concatOverrides(list[Ovri] ovs) =
-    " {\n" + intercalate("\n", [ generate(ov) | Ovri ov <- ovs ]) + "\n}";
+    " {\n" + sangrar(intercalate("\n", [ generate(ov) | Ovri ov <- ovs ])) + "\n}";
