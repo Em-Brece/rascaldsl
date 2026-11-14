@@ -139,21 +139,21 @@ str generate(ovri(str name, list[Firma] firma, Program cuerpo)) =
     "override " + name + concatLista([ generate(f) | Firma f <- firma ])
   + " = " + bloque(cuerpo);
 
-// a.b.c(args)
+// a.b.c(args)  (los campos ya traen el "." del lexer)
 str generate(invCall(str name, list[str] campos, Args a)) =
-    name + concatLista([ "." + c | str c <- campos ]) + generate(a);
+    name + concatLista(campos) + generate(a);
 
-// a.b.c
+// a.b.c  (los campos ya traen el ".")
 str generate(invRef(str name, list[str] campos)) =
-    name + concatLista([ "." + c | str c <- campos ]);
+    name + concatLista(campos);
 
 str generate(noArgs()) = "()";
 str generate(someArgs(list[Exp] args)) =
     "(" + intercalate(", ", [ generate(e) | Exp e <- args ]) + ")";
 
-// (a, b, c)
+// (a, b, c)  (los elementos de resto ya traen la "," del lexer: se quita para reunir)
 str generate(tupla(str primero, list[str] resto)) =
-    "(" + intercalate(", ", [primero] + resto) + ")";
+    "(" + intercalate(", ", [primero] + [ r[1..] | str r <- resto ]) + ")";
 
 str generate(rango(ExpAtom ini, ExpAtom fin)) =
     generate(ini) + " to " + generate(fin);

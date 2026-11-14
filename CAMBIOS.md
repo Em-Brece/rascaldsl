@@ -1,3 +1,37 @@
+# Cómo ejecutar el proyecto en VS Code
+
+## 1. Generar el código de un ejemplo (ejecución del lenguaje)
+
+En la terminal de Rascal, importar el generador y pasarle la ubicación de un `.ol`:
+
+```
+import Generator;
+generar(|project://rascaldsl/instance/snippet1.ol|);
+```
+
+Se repite cambiando el número para `snippet2`, `snippet3` y `snippet4`. No hay que "cargar"
+el ejemplo aparte: la función lee el archivo, construye el AST y muestra el código generado.
+
+
+Para generar los cuatro ejemplos de una vez existe un punto de entrada en `Main`:
+
+```
+import Main;
+main([]);
+```
+
+## 3. Chequear los tipos de un ejemplo
+
+En la misma terminal se importa el chequeador y se inspeccionan los mensajes:
+
+```
+import Checker;
+import Parser;
+modeloDesdeArbol(parsear(|project://rascaldsl/instance/snippet1.ol|)).messages;
+```
+
+---
+
 # Proyecto 2 – Objectilang: cambios a la gramática del Proyecto 1
 
 **Integrantes:** Daniel Tinjaca y Santiago Ortega
